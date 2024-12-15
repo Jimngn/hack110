@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clothing Analyzer and Suggestion</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #6699C2;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        #camera {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            margin: 20px;
+        }
+        #video, #canvas, #imagePreview {
+            width: 80%;
+            max-width: 640px;
+            border: 2px solid #333;
+            border-radius: 8px;
+            transform: scaleX(-1);
+        }
+        #buttons {
+            margin-top: 15px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        #canvas, #imagePreview {
+            display: none;
+        }
+        #countdown {
+            font-size: 2em;
+            color: #007bff;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Clothing Analysis and Suggestion</h1>
+    <h2>Do not include your face</h2>
+    <h2>Press capture to start countdown timer to take picture</h2>
+    <div id="camera">
+        <img id="imagePreview" src="captured_image.png" alt="Captured Image Preview">
+        <video id="video" autoplay></video>
+        <canvas id="canvas"></canvas>
+        <div id="countdown"></div>
+    </div>
+    <div id="buttons">
+        <button id="captureButton">Capture Photo</button>
+        <button id="retakeButton">Retake</button>
+        <button id="analyzeButton">Analyze</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const imagePreview = document.getElementById('imagePreview');
+        const captureButton = document.getElementById('captureButton');
+        const retakeButton = document.getElementById('retakeButton');
+        const analyzeButton = document.getElementById('analyzeButton');
+        const countdown = document.getElementById('countdown');
+        let imageBlob = null;
+
+        fetch('captured_image.png', { method: 'HEAD' })
+            .then(response => {
+                if (response.ok) {
+                    imagePreview.style.display = 'block';
+                    video.style.display = 'none';
+                } else {
+                    startCamera();
+                }
+            })
+            .catch(() => startCamera());
+
+        function startCamera() {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then((stream) => {
+                    video.srcObject = stream;
+                    window.localStream = stream;
+                })
+                .catch((error) => {
+                    console.error('Error accessing webcam: ', error);
+                    alert('Please allow camera access to use this feature.');
+                });
+        }
+
+        function startCountdown() {
+            let timeLeft = 3;
+            countdown.style.display = 'block';
+            countdown.textContent = timeLeft;
+
+            const timer = setInterval(() => {
+                timeLeft -= 1;
+                countdown.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    countdown.style.display = 'none';
+                    captureImage();
+                }
+            }, 1000);
+        }
+
+        function captureImage() {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const stream = window.localStream;
+            const tracks = stream.getTracks();
+            tracks.forEach(track => track.stop());
+
+            video.style.display = 'none';
+            canvas.style.display = 'none';
+
+            canvas.toBlob((blob) => {
+                imageBlob = blob;
+
+                const downloadLink = document.createElement('a');
+                downloadLink.href = URL.createObjectURL(imageBlob);
+                downloadLink.download = 'captured_image.png';
+                downloadLink.click();
+
+                imagePreview.src = downloadLink.href;
+                imagePreview.style.display = 'block';
+            }, 'image/png');
+        }
+
+        captureButton.addEventListener('click', startCountdown);
+
+        retakeButton.addEventListener('click', () => {
+            imagePreview.style.display = 'none';
+            startCamera();
+            video.style.display = 'block';
+            canvas.style.display = 'none';
+        });
+//functionality for latter, didnt have time to do this. it was suppose to analyze onthe website it self
+        analyzeButton.addEventListener('click', () => {
+            if (imageBlob) {
+                console.log('API Call:', imageBlob);
+                alert('Image ready for analysis');
+            } else {
+                alert('No image captured for analysis');
+            }
+        });
+    </script>
+</body>
+</html>
